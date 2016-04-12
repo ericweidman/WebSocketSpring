@@ -4,8 +4,8 @@ var game = new Phaser.Game(800, 600, Phaser.AUTO, '', { preload: preload, create
 
 function preload () {
   game.load.image('earth', 'assets/light_sand.png')
-  game.load.spritesheet('dude', 'assets/dude.png', 64, 64)
-  game.load.spritesheet('enemy', 'assets/dude.png', 64, 64)
+  game.load.spritesheet('enemy', 'assets/dude.png', 61, 61)
+  game.load.spritesheet('enemy', 'assets/dude.png', 61, 61)
 }
 
 var socket // Socket connection
@@ -24,6 +24,8 @@ var isConnected = false
 
 function create () {
   /* initialize socket */
+  var ws = new SockJS("ws:10.0.10.41:8080/socket")
+  socket = Stomp.over(ws)
 
   // Resize our game world to be a 2000 x 2000 square
   game.world.setBounds(-500, -500, 1000, 1000)
@@ -35,14 +37,14 @@ function create () {
   // The base of our player
   var startX = Math.round(Math.random() * (1000) - 500)
   var startY = Math.round(Math.random() * (1000) - 500)
-  player = game.add.sprite(startX, startY, 'dude')
+  player = game.add.sprite(startX, startY, 'enemy')
   player.anchor.setTo(0.5, 0.5)
   player.animations.add('move', [0, 1, 2, 3, 4, 5, 6, 7], 20, true)
   player.animations.add('stop', [3], 20, true)
 
   // This will force it to decelerate and limit its speed
   // player.body.drag.setTo(200, 200)
-  player.body.maxVelocity.setTo(400, 400)
+  player.body.maxVelocity.setTo(1700, 1700)
   player.body.collideWorldBounds = true
 
   // Create some baddies to waste :)
@@ -57,6 +59,7 @@ function create () {
   cursors = game.input.keyboard.createCursorKeys()
 
   /* connect socket */
+  socket.connect({}, onSocketConnected)
 }
 
 // Socket connected
@@ -76,7 +79,10 @@ function onSocketConnected () {
   console.log(socket)
 
   /* subscribe to /move */
+  socket.subscribe("/move", onMovePlayer)
+
   /* subscribe to /remove-player */
+  socket.subscribe("/remove", onRemovePlayer)
 }
 
 // Move player
@@ -164,6 +170,7 @@ function update () {
 
   if (isConnected) {
     /* send to /move */
+    socket.send("/move", {}, JSON.stringify({id: playerId, x: player.x, y: player.y}))
   }
 }
 
